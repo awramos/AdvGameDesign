@@ -3,13 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-/* TODO
- * MainMenu: Look at play button and why it makes the lighting weird
- * Inventory/PlayerController: Shift inventory to the inventory script
- * EnemyController: Work out enemy movement and animations
- * GUIManager: ("countdownTimer") Add conditional text for game over, goal not met yet, and goal met
- * Combine HealthBar with GUIManager
-*/
+using UnityEngine.UI;
+
 public class PlayerController : MonoBehaviour
 {
     public Transform playerTransform;
@@ -27,7 +22,19 @@ public class PlayerController : MonoBehaviour
 
     bool canTakeDamage = true;
 
-    private int itemCount;
+    private int metalCount;
+    private int batteryCount;
+
+    public AudioSource healSound;
+    public AudioSource hurtSound;
+    public AudioSource collectSound;
+    public AudioSource backgroundMusic;
+
+    public Text metalScore;
+    public Text batteryScore;
+    public GameObject incomplete;
+    public GameObject complete;
+    public GameObject dead;
 
     void Start()
     {
@@ -42,7 +49,13 @@ public class PlayerController : MonoBehaviour
         currentHealth = 75;
         healthBar.SetMaxHealth(maxHealth);
 
-        itemCount = 0;
+        metalCount = 0;
+        batteryCount = 0;
+        metalScore.text = "0/4";
+        batteryScore.text = "0/1";
+        incomplete.SetActive(false);
+        complete.SetActive(false);
+        dead.SetActive(false);
 
         GameManager.instance.player = this;
     }
@@ -129,8 +142,7 @@ public class PlayerController : MonoBehaviour
             animator.SetTrigger("isLanding");
             animator.ResetTrigger("isFalling");
             animator.ResetTrigger("isJumping");
-            StartCoroutine(WaitForSeconds(2f));
-            animator.ResetTrigger("isLanding");
+            StartCoroutine(jumpWait());
         }
         else if (collision.gameObject.tag == "Ground")
         {
@@ -158,29 +170,36 @@ public class PlayerController : MonoBehaviour
     {
         if (other.gameObject.CompareTag("health"))
         {
-            print("health obtained");
+            healSound.Play();
             ChangeHealth(20);
             Destroy(other.gameObject);
         }
-        if (other.gameObject.CompareTag("item"))
+        if (other.gameObject.CompareTag("metal"))
         {
-            print("item obtained");
-            itemCount += 1;
+            collectSound.Play();
+            metalCount += 1;
             Destroy(other.gameObject);
+            metalScore.text = metalCount + "/4";
+        }
+        if (other.gameObject.CompareTag("battery"))
+        {
+            collectSound.Play();
+            batteryCount += 1;
+            Destroy(other.gameObject);
+            batteryScore.text = batteryCount + "/1";
         }
         if (other.gameObject.tag == "goal")
         {
-            if (itemCount < 2)
+            if (metalCount < 4  && batteryCount < 1)
             {
-                print("Collect all the goal items first!");
+                incomplete.SetActive(true);
+                StartCoroutine(popupWait());
             }
             else
             {
-                print("Goal met!");
-                rb.constraints = RigidbodyConstraints.FreezeAll;
-                rb.freezeRotation = true;
-                WaitForSeconds(10f);
-                SceneManager.LoadScene("Menu");
+                complete.SetActive(true);
+                Time.timeScale = 0;
+                StartCoroutine(endGameWait());
             }
         }
     }
@@ -189,20 +208,20 @@ public class PlayerController : MonoBehaviour
     {
         if (other.gameObject.CompareTag("poison"))
         {
-            //print("poison collision");
             if (canTakeDamage)
             {
+                hurtSound.Play();
                 ChangeHealth(-5);
-                StartCoroutine(WaitForSeconds(1f));
+                StartCoroutine(damageWait());
             }
         }
         if (other.gameObject.CompareTag("enemy"))
         {
-            //print("enemy collision");
             if (canTakeDamage)
             {
+                hurtSound.Play();
                 ChangeHealth(-10);
-                StartCoroutine(WaitForSeconds(.9f));
+                StartCoroutine(damageWait());
             }
         }
     }
@@ -212,12 +231,9 @@ public class PlayerController : MonoBehaviour
         currentHealth += value;
         if (currentHealth < 1)
         {
-            print("You Died - Game Over");
-            rb.constraints = RigidbodyConstraints.FreezeAll;
-            rb.freezeRotation = true;
-            WaitForSeconds(10f);
-            SceneManager.LoadScene("Menu");
-
+            dead.SetActive(true);
+            Time.timeScale = 0;
+            StartCoroutine(endGameWait());
         }
 
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
@@ -238,10 +254,26 @@ public class PlayerController : MonoBehaviour
         healthBar.SetHealth(currentHealth);
     }
 
-    IEnumerator WaitForSeconds(float f)
+    IEnumerator jumpWait()
+    {
+        yield return new WaitForSecondsRealtime(2);
+        animator.ResetTrigger("isLanding");
+    }
+    IEnumerator popupWait()
+    {
+        yield return new WaitForSecondsRealtime(4);
+        incomplete.SetActive(false);
+    }
+    IEnumerator endGameWait()
+    {
+        yield return new WaitForSecondsRealtime(4);
+        Time.timeScale = 1;
+        SceneManager.LoadScene("Menu");
+    }
+    IEnumerator damageWait()
     {
         canTakeDamage = false;
-        yield return new WaitForSecondsRealtime(f);
+        yield return new WaitForSecondsRealtime(1);
         canTakeDamage = true;
     }
 }

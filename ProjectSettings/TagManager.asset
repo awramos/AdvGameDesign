@@ -7,9 +7,10 @@ TagManager:
   - Ground
   - enemy
   - poison
-  - item
   - goal
   - health
+  - metal
+  - battery
   layers:
   - Default
   - TransparentFX

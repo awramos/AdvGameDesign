@@ -16,7 +16,7 @@ public class EnemyController : MonoBehaviour
     {
         SetTarget(GameManager.instance.player.playerTransform);
         rotationSpeed = 5f;
-        approachRadius = 10f;
+        approachRadius = 13f;
         attackRadius = 3f;
     }
 
